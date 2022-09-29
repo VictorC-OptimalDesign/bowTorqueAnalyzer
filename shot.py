@@ -217,6 +217,8 @@ class data:
         if self.shot.confidence != ShotConfidence.NoShot and self.altShot.confidence != ShotConfidence.NoShot:
             if self.altShot.datum.v.magnitude > self.shot.datum.v.magnitude:
                 self.shot.confidence = ShotConfidence.VeryLow
+        if self.shot.confidence == ShotConfidence.NoShot:
+            self.shot.datum = self.maxAccel
         
     def __findShot(self, offset: int = 0) -> shotDatum:
         __SHOT_THRESHOLD: int = 10000

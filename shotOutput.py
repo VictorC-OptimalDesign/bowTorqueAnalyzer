@@ -3,6 +3,7 @@
 import enum
 from io import FileIO
 import os
+from statistics import NormalDist
 import shot
 import string
 import typing
@@ -52,6 +53,15 @@ class Col(enum.Enum):
     AltShot = ShotRange + RANGE_LENGTH + 1
     AltShotConfidence = AltShot + VECTOR_OFFSET_LENGTH
     AltShotRange = 1 + AltShotConfidence + 1
+    
+class AbbreviatedCol(enum.Enum):
+    Name = 0
+    Samples = Name + 1
+    V = Samples + 1
+    VRange = V + VECTOR_OFFSET_LENGTH + 1
+    Shot = VRange + RANGE_LENGTH + 1
+    ShotConfidence = Shot + VECTOR_OFFSET_LENGTH
+    ShotRange = 1 + ShotConfidence + 1
 
 
 # === CLASSES ==================================================================
@@ -169,8 +179,51 @@ class xlsx:
     )
     __HEADER_LABELS_LENGTH = len(__HEADER_LABELS)
     
+    
+    __ABBREVIATED_HEADER_LABELS : typing.List[str] = (
+        '',
+        'Samples',
+        'V',
+        'V[]',
+        'V-x',
+        'V-y',
+        'V-z',
+        '',
+        'V[-4]',
+        'V[-3]',
+        'V[-2]',
+        'V[-1]',
+        'V[ 0]',
+        'V[+1]',
+        'V[+2]',
+        'V[+3]',
+        'V[+4]',
+        '',
+        'Shot',
+        'Shot[]',
+        'Shot-x',
+        'Shot-y',
+        'Shot-z',
+        'Confidence',
+        '',
+        'Shot[-4]',
+        'Shot[-3]',
+        'Shot[-2]',
+        'Shot[-1]',
+        'Shot[ 0]',
+        'Shot[+1]',
+        'Shot[+2]',
+        'Shot[+3]',
+        'Shot[+4]',
+    )
+    __ABBREVIATED_HEADER_LABELS_LENGTH = len(__HEADER_LABELS)
+    
     __DATA_ROW_START = Row.Data.value + 1
     __DATA_ROW_END = 2000
+    
+    class Mode(enum.Enum):
+        Normal = 0
+        Abbreviated = 1
         
     class sheet:
         def __init__(self, name: str, ws : xlsxwriter.Workbook.worksheet_class):
@@ -178,7 +231,8 @@ class xlsx:
             self.row : int = 0
             self.ws: xlsxwriter.Workbook.worksheet_class = ws
         
-    def __init__(self, fileName: str = DEFAULT_FILE_NAME, sheetNames: typing.List[str] = __DEFAULT_SHEET_NAMES):
+    def __init__(self, mode : Mode = Mode.Normal, fileName: str = DEFAULT_FILE_NAME, sheetNames: typing.List[str] = __DEFAULT_SHEET_NAMES):
+        self.mode : self.Mode = mode
         self.fileName: str = str(fileName)
         self.wb: xlsxwriter.Workbook = xlsxwriter.Workbook(self.fileName + self.__EXTENSION)
         self.rankedSheets: typing.List[self.sheet] = []
@@ -190,8 +244,10 @@ class xlsx:
             self.rankedSheets.append(s)
 
     def __initSheet(self, s : sheet):
-        MAX_ROW = 2000
-        for i, field in enumerate(self.__HEADER_LABELS):
+        labels : typing.List[str] = self.__HEADER_LABELS
+        if self.mode is self.Mode.Abbreviated:
+            labels = self.__ABBREVIATED_HEADER_LABELS
+        for i, field in enumerate(labels):
             s.ws.write(Row.Header.value, i, field)
             s.ws.write(Row.HeaderRepeat.value, i, field)
         for i, field in enumerate(self.__ROW_LABELS):
@@ -202,7 +258,7 @@ class xlsx:
         s.ws.freeze_panes(Row.Data.value, Col.Samples.value)
         s.row = Row.Data.value
             
-    def __writeVectorDatum(self, ws : xlsxwriter.Workbook.worksheet_class, row : int, col :int, datum : shot.vectorDatum, ) -> int:
+    def __writeVectorDatum(self, ws : xlsxwriter.Workbook.worksheet_class, row : int, col :int, datum : shot.vectorDatum) -> int:
         ws.write(row, col + VectorOffset.Magnitude.value, datum.v.magnitude)
         ws.write(row, col + VectorOffset.Index.value, datum.index)
         ws.write(row, col + VectorOffset.X.value, datum.v.x)
@@ -221,19 +277,28 @@ class xlsx:
     def __writeShotData(self, s : sheet, data : shot.data):
         row: int = s.row
         ws : xlsxwriter.Workbook.worksheet_class = s.ws
-        ws.write(row, Col.Name.value, data.name)
-        ws.write(row, Col.Samples.value, len(data.accel))
-        self.__writeVectorDatum(ws, row, Col.V.value, data.maxAccel)
-        self.__writeRange(ws, row, Col.VRange.value, data.accel, data.maxAccel.index)
-        self.__writeVectorDatum(ws, row, Col.X.value, data.maxAccelX)
-        self.__writeVectorDatum(ws, row, Col.Y.value, data.maxAccelY)
-        self.__writeVectorDatum(ws, row, Col.Z.value, data.maxAccelZ)
-        self.__writeVectorDatum(ws, row, Col.Shot.value, data.shot.datum)
-        ws.write(row, Col.ShotConfidence.value, data.shot.confidence.value)
-        self.__writeRange(ws, row, Col.ShotRange.value, data.accel, data.shot.datum.index)
-        self.__writeVectorDatum(ws, row, Col.AltShot.value, data.altShot.datum)
-        ws.write(row, Col.AltShotConfidence.value, data.altShot.confidence.value)
-        self.__writeRange(ws, row, Col.AltShotRange.value, data.accel, data.altShot.datum.index)
+        if self.mode is self.Mode.Normal:
+            ws.write(row, Col.Name.value, data.name)
+            ws.write(row, Col.Samples.value, len(data.accel))
+            self.__writeVectorDatum(ws, row, Col.V.value, data.maxAccel)
+            self.__writeRange(ws, row, Col.VRange.value, data.accel, data.maxAccel.index)
+            self.__writeVectorDatum(ws, row, Col.X.value, data.maxAccelX)
+            self.__writeVectorDatum(ws, row, Col.Y.value, data.maxAccelY)
+            self.__writeVectorDatum(ws, row, Col.Z.value, data.maxAccelZ)
+            self.__writeVectorDatum(ws, row, Col.Shot.value, data.shot.datum)
+            ws.write(row, Col.ShotConfidence.value, data.shot.confidence.value)
+            self.__writeRange(ws, row, Col.ShotRange.value, data.accel, data.shot.datum.index)
+            self.__writeVectorDatum(ws, row, Col.AltShot.value, data.altShot.datum)
+            ws.write(row, Col.AltShotConfidence.value, data.altShot.confidence.value)
+            self.__writeRange(ws, row, Col.AltShotRange.value, data.accel, data.altShot.datum.index)
+        elif self.mode is self.Mode.Abbreviated:
+            ws.write(row, AbbreviatedCol.Name.value, data.name)
+            ws.write(row, AbbreviatedCol.Samples.value, len(data.accel))
+            self.__writeVectorDatum(ws, row, AbbreviatedCol.V.value, data.maxAccel)
+            self.__writeRange(ws, row, AbbreviatedCol.VRange.value, data.accel, data.maxAccel.index)
+            self.__writeVectorDatum(ws, row, AbbreviatedCol.Shot.value, data.shot.datum)
+            ws.write(row, AbbreviatedCol.ShotConfidence.value, data.shot.confidence.value)
+            self.__writeRange(ws, row, AbbreviatedCol.ShotRange.value, data.accel, data.shot.datum.index)
         s.row += 1
         
     def __getXlsxColStr(self, col : int) -> str:
@@ -250,7 +315,10 @@ class xlsx:
     
     def __writeStatistics(self, s : sheet):
         if s.row > Row.Data.value:
-            for i, field in enumerate(self.__HEADER_LABELS):
+            labels : typing.List[str] = self.__HEADER_LABELS
+            if self.mode is self.Mode.Abbreviated:
+                labels = self.__ABBREVIATED_HEADER_LABELS
+            for i, field in enumerate(labels):
                 if field:
                     for j in range(Row.Min.value, Row.HeaderRepeat.value):
                         colStr : str = self.__getXlsxColStr(i)
@@ -295,4 +363,66 @@ class log:
         
     def finalize(self):
         self.file.close()
+        
+class xlsxData:
+    __EXTENSION : str = 'xlsx'
+    __OPEN_MODE : str = 'w'
+    
+    class Row(enum.Enum):
+        Header = 0
+        Data = 1
+        
+    class Col(enum.Enum):
+        Index = 0
+        X = 1
+        Y = 2
+        Z = 3
+        Magnitude = 4
+        Shot = 5
+    
+    class DataType(enum.Enum):
+        Gyro = 0
+        Accel = 1
+        HiG = 2
+        
+    def __init__(self, name: str, folderPath : str, type : DataType = DataType.Gyro):
+        self.name: str = str(name)
+        self.folderPath : str = folderPath
+        self.type : self.DataType = type
+        self.wb: xlsxwriter.Workbook = xlsxwriter.Workbook(os.path.join(self.folderPath, '{0}.{1}'.format(self.name, self.__EXTENSION)))
+        self.ws: typing.List[xlsxwriter.Workbook.worksheet_class] = []
+        
+    def __addHeader(self, ws : xlsxwriter.Workbook.worksheet_class):
+        ws.write(self.Row.Header.value, self.Col.Index.value, 'Index')
+        ws.write(self.Row.Header.value, self.Col.X.value, 'X')
+        ws.write(self.Row.Header.value, self.Col.Y.value, 'Y')
+        ws.write(self.Row.Header.value, self.Col.Z.value, 'Z')
+        ws.write(self.Row.Header.value, self.Col.Magnitude.value, 'Magnitude')
+        ws.write(self.Row.Header.value, self.Col.Shot.value, 'Shot')
+        
+    def addData(self, s : shot.data):
+        MAX_VALUE = 10000
+        data : typing.List[shot.vector] = s.gyro
+        if self.type is self.DataType.Accel:
+            data = s.accel
+        elif self.type is self.DataType.HiG:
+            data = s.hiG
+        ws = self.wb.add_worksheet(s.fileName)
+        self.__addHeader(ws)
+        for i, d in enumerate(data):
+            ws.write(self.Row.Data.value + i, self.Col.Index.value, i)
+            ws.write(self.Row.Data.value + i, self.Col.X.value, d.x)
+            ws.write(self.Row.Data.value + i, self.Col.Y.value, d.y)
+            ws.write(self.Row.Data.value + i, self.Col.Z.value, d.z)
+            ws.write(self.Row.Data.value + i, self.Col.Magnitude.value, d.magnitude)
+        i = len(data)
+        ws.write(self.Row.Data.value + i, self.Col.Index.value, s.shot.datum.index)
+        ws.write(self.Row.Data.value + i, self.Col.Shot.value, -MAX_VALUE)
+        i += 1
+        ws.write(self.Row.Data.value + i, self.Col.Index.value, s.shot.datum.index)
+        ws.write(self.Row.Data.value + i, self.Col.Shot.value, MAX_VALUE)
+        self.ws.append(ws)
+        
+    def finalize(self):
+        self.wb.close()
     
