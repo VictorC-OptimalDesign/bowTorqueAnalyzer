@@ -6,6 +6,7 @@ import operator
 import os
 import shot
 import shotOutput
+import shotPlot
 import shutil
 import string
 import typing
@@ -37,6 +38,11 @@ def __initRawDataLog() -> typing.List[shotOutput.xlsxData]:
         logs.append(log)
     return logs
 
+def __plot(data : shot.data):
+    shotPlot.vector_plot(data.getHiGList(0, 30))
+    shotIndex : int = data.shot.datum.index
+    shotPlot.vector_plot(data.getAccelList(shotIndex - 3, shotIndex + 7))
+
 def __process():
     output : shotOutput.xlsx = shotOutput.xlsx(shotOutput.xlsx.Mode.Abbreviated)
     logs : typing.List[shotOutput.xlsxData] = __initRawDataLog()
@@ -47,6 +53,7 @@ def __process():
         output.writeShotData(datum)
         for l in logs:
             l.addData(datum)
+        __plot(datum)
     for l in logs:
         l.finalize()
     output.finalize()

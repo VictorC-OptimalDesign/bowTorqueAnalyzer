@@ -5,6 +5,7 @@ import math
 import operator
 import os
 import string
+import struct
 import typing
 
 
@@ -66,6 +67,7 @@ class vector:
         self.absX: float = abs(x)
         self.absY: float = abs(y)
         self.absZ: float = abs(z)
+        self.list: typing.List[float] = [self.x, self.y, self.z]
         
     def getVectorSum(self) -> int:
         return abs(self.x) + abs(self.y) + abs(self.z)
@@ -163,20 +165,22 @@ class data:
                     if (n == Handedness.Left.value):
                         self.handedness = Handedness.Left
                 elif (type == TYPE_HI_G_ACCEL_COMP):
-                    x : int = int(entries[self.LineIndex.X.value])
-                    y : int = int(entries[self.LineIndex.Y.value])
-                    z : int = int(entries[self.LineIndex.Z.value])
-                    HI_SHIFT = 8
-                    LO_SHIFT = 0
-                    MASK = 0xff
+                    FORMAT : str = '<2b'
+                    ENDIANNESS : str = 'little'
+                    bytes = int(entries[self.LineIndex.X.value]).to_bytes(2, ENDIANNESS, signed = True)
+                    x = struct.unpack(FORMAT, bytes)
+                    bytes = int(entries[self.LineIndex.Y.value]).to_bytes(2, ENDIANNESS, signed = True)
+                    y = struct.unpack(FORMAT, bytes)
+                    bytes = int(entries[self.LineIndex.Z.value]).to_bytes(2, ENDIANNESS, signed = True)
+                    z = struct.unpack(FORMAT, bytes)
                     v0 : vector = vector(
-                        (x >> LO_SHIFT) & MASK,
-                        (x >> HI_SHIFT) & MASK,
-                        (y >> LO_SHIFT) & MASK)
+                        float(x[0]),
+                        float(x[1]),
+                        float(y[0]))
                     v1 : vector = vector(
-                        (y >> HI_SHIFT) & MASK,
-                        (z >> LO_SHIFT) & MASK,
-                        (z >> HI_SHIFT) & MASK)
+                        float(y[1]),
+                        float(z[0]),
+                        float(z[1]))
                     self.hiG.append(v0)
                     self.hiG.append(v1)
             if not processedCalibration:
@@ -285,5 +289,42 @@ class data:
         shot : shotDatum = shotDatum(vectorDatum(self.accel[shotIndex], shotIndex), shotConfidence)
         return shot
     
-    def __writeEntryToFile():
-        print('do something')
+    def getAccelList(self, start : int = 0, end : int = -1) -> typing.List[typing.List[float]]:
+        l = []
+        max = len(self.accel)
+        if end < 0:
+            end = max
+        if end > max:
+            end = max
+            
+        for v in self.accel[start:end]:
+            l.append(v.list)
+        
+        return l
+    
+    def getGyroList(self, start : int = 0, end : int = -1) -> typing.List[typing.List[float]]:
+        l = []
+        max = len(self.gyro)
+        if end < 0:
+            end = max
+        if end > max:
+            end = max
+            
+        for v in self.gyro[start:end]:
+            l.append(v.list)
+        
+        return l
+    
+    def getHiGList(self, start : int = 0, end : int = -1) -> typing.List[typing.List[float]]:
+        l = []
+        max = len(self.hiG)
+        if end < 0:
+            end = max
+        if end > max:
+            end = max
+            
+        for v in self.hiG[start:end]:
+            l.append(v.list)
+        
+        return l
+    
