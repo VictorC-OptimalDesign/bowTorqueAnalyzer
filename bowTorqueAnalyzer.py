@@ -38,10 +38,22 @@ def __initRawDataLog() -> typing.List[shotOutput.xlsxData]:
         logs.append(log)
     return logs
 
+def __getShotRange(i : int, length : int) -> typing.List[int]:
+    MINUS: int = -5
+    PLUS: int = 5
+    start: int = i + MINUS
+    end: int = i + PLUS
+    if (start < 0):
+        start = 0
+    if (end > length):
+        end = length
+    return [start, end]
+
 def __plot(data : shot.data):
-    shotPlot.vector_plot(data.getHiGList(0, 30))
-    shotIndex : int = data.shot.datum.index
-    shotPlot.vector_plot(data.getAccelList(shotIndex - 3, shotIndex + 7))
+    range: typing.List[int] = __getShotRange(data.hiGShot.datum.index, len(data.hiG))
+    shotPlot.vector_plot(data.getHiGList(range[0], range[1]))
+    range = __getShotRange(data.shot.datum.index, len(data.accel))
+    shotPlot.vector_plot(data.getAccelList(range[0], range[1]))
 
 def __process():
     output : shotOutput.xlsx = shotOutput.xlsx(shotOutput.xlsx.Mode.Abbreviated)

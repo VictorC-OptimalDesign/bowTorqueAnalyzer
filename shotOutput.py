@@ -53,6 +53,9 @@ class Col(enum.Enum):
     AltShot = ShotRange + RANGE_LENGTH + 1
     AltShotConfidence = AltShot + VECTOR_OFFSET_LENGTH
     AltShotRange = 1 + AltShotConfidence + 1
+    HiGShot = AltShotConfidence + RANGE_LENGTH + 1
+    HiGShotConfidence = HiGShot + VECTOR_OFFSET_LENGTH
+    HiGShotRange = 1 + HiGShotConfidence + 1
     
 class AbbreviatedCol(enum.Enum):
     Name = 0
@@ -62,6 +65,9 @@ class AbbreviatedCol(enum.Enum):
     Shot = VRange + RANGE_LENGTH + 1
     ShotConfidence = Shot + VECTOR_OFFSET_LENGTH
     ShotRange = 1 + ShotConfidence + 1
+    HiGShot = ShotRange + RANGE_LENGTH + 1
+    HiGShotConfidence = HiGShot + VECTOR_OFFSET_LENGTH
+    HiGShotRange = 1 + HiGShotConfidence + 1
 
 
 # === CLASSES ==================================================================
@@ -176,6 +182,23 @@ class xlsx:
         'Alt[+2]',
         'Alt[+3]',
         'Alt[+4]',
+        '',
+        'HiG',
+        'HiG[]',
+        'HiG-x',
+        'HiG-y',
+        'HiG-z',
+        'Confidence',
+        '',
+        'HiG[-4]',
+        'HiG[-3]',
+        'HiG[-2]',
+        'HiG[-1]',
+        'HiG[ 0]',
+        'HiG[+1]',
+        'HiG[+2]',
+        'HiG[+3]',
+        'HiG[+4]',
     )
     __HEADER_LABELS_LENGTH = len(__HEADER_LABELS)
     
@@ -215,6 +238,23 @@ class xlsx:
         'Shot[+2]',
         'Shot[+3]',
         'Shot[+4]',
+        '',
+        'HiG',
+        'HiG[]',
+        'HiG-x',
+        'HiG-y',
+        'HiG-z',
+        'Confidence',
+        '',
+        'HiG[-4]',
+        'HiG[-3]',
+        'HiG[-2]',
+        'HiG[-1]',
+        'HiG[ 0]',
+        'HiG[+1]',
+        'HiG[+2]',
+        'HiG[+3]',
+        'HiG[+4]',
     )
     __ABBREVIATED_HEADER_LABELS_LENGTH = len(__HEADER_LABELS)
     
@@ -291,6 +331,9 @@ class xlsx:
             self.__writeVectorDatum(ws, row, Col.AltShot.value, data.altShot.datum)
             ws.write(row, Col.AltShotConfidence.value, data.altShot.confidence.value)
             self.__writeRange(ws, row, Col.AltShotRange.value, data.accel, data.altShot.datum.index)
+            self.__writeVectorDatum(ws, row, Col.HiGShot.value, data.hiGShot.datum)
+            ws.write(row, Col.HiGShotConfidence.value, data.hiGShot.confidence.value)
+            self.__writeRange(ws, row, Col.HiGShotRange.value, data.accel, data.hiGShot.datum.index)
         elif self.mode is self.Mode.Abbreviated:
             ws.write(row, AbbreviatedCol.Name.value, data.name)
             ws.write(row, AbbreviatedCol.Samples.value, len(data.accel))
@@ -299,6 +342,9 @@ class xlsx:
             self.__writeVectorDatum(ws, row, AbbreviatedCol.Shot.value, data.shot.datum)
             ws.write(row, AbbreviatedCol.ShotConfidence.value, data.shot.confidence.value)
             self.__writeRange(ws, row, AbbreviatedCol.ShotRange.value, data.accel, data.shot.datum.index)
+            self.__writeVectorDatum(ws, row, Col.HiGShot.value, data.hiGShot.datum)
+            ws.write(row, Col.HiGShotConfidence.value, data.hiGShot.confidence.value)
+            self.__writeRange(ws, row, Col.HiGShotRange.value, data.accel, data.hiGShot.datum.index)
         s.row += 1
         
     def __getXlsxColStr(self, col : int) -> str:
@@ -403,10 +449,12 @@ class xlsxData:
     def addData(self, s : shot.data):
         MAX_VALUE = 10000
         data : typing.List[shot.vector] = s.gyro
+        shotIndex = s.shot.datum.index
         if self.type is self.DataType.Accel:
             data = s.accel
         elif self.type is self.DataType.HiG:
             data = s.hiG
+            shotIndex = s.hiGShot.datum.index
         ws = self.wb.add_worksheet(s.fileName)
         self.__addHeader(ws)
         for i, d in enumerate(data):
@@ -416,10 +464,10 @@ class xlsxData:
             ws.write(self.Row.Data.value + i, self.Col.Z.value, d.z)
             ws.write(self.Row.Data.value + i, self.Col.Magnitude.value, d.magnitude)
         i = len(data)
-        ws.write(self.Row.Data.value + i, self.Col.Index.value, s.shot.datum.index)
+        ws.write(self.Row.Data.value + i, self.Col.Index.value, shotIndex)
         ws.write(self.Row.Data.value + i, self.Col.Shot.value, -MAX_VALUE)
         i += 1
-        ws.write(self.Row.Data.value + i, self.Col.Index.value, s.shot.datum.index)
+        ws.write(self.Row.Data.value + i, self.Col.Index.value, shotIndex)
         ws.write(self.Row.Data.value + i, self.Col.Shot.value, MAX_VALUE)
         self.ws.append(ws)
         

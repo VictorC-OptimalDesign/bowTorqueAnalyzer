@@ -128,10 +128,18 @@ class data:
         self.maxAccelZ: vectorDatum
         self.shot: shotDatum
         self.altShot: shotDatum
+        self.hiGShot: shotDatum
         if self.fileName:
             self.__process()
             self.__analyze()
             self.__processShot()
+        
+    def __limitHiG(n : float) -> float:
+        UPPER = 127.0
+        LOWER = -128.0
+        if n > UPPER or n < LOWER:
+            n = 0
+        return n
         
     def __process(self):
         if self.fileName:
@@ -146,16 +154,19 @@ class data:
                 line = line.strip()
                 entries = line.split(',')
                 type = int(entries[self.LineIndex.Type.value])
-                v = vector(float(entries[self.LineIndex.X.value]),
-                           float(entries[self.LineIndex.Y.value]),
-                           float(entries[self.LineIndex.Z.value]))
+                v : vector = vector(float(entries[self.LineIndex.X.value]),
+                                    float(entries[self.LineIndex.Y.value]),
+                                    float(entries[self.LineIndex.Z.value]))
                 
                 if (type == TYPE_IMU_GRYO):
                     self.gyro.append(v)
                 elif (type == TYPE_IMU_ACCEL):
                     self.accel.append(v)
                 elif (type == TYPE_HI_G_ACCEL):
-                    self.hiG.append(v)
+                    hiGV : vector = vector(data.__limitHiG(float(entries[self.LineIndex.X.value])),
+                                           data.__limitHiG(float(entries[self.LineIndex.Y.value])),
+                                           data.__limitHiG(float(entries[self.LineIndex.Z.value])))
+                    self.hiG.append(hiGV)
                 elif (type == TYPE_CALIBRATION):
                     self.calibration = v
                     processedCalibration = True
@@ -174,13 +185,13 @@ class data:
                     bytes = int(entries[self.LineIndex.Z.value]).to_bytes(2, ENDIANNESS, signed = True)
                     z = struct.unpack(FORMAT, bytes)
                     v0 : vector = vector(
-                        float(x[0]),
-                        float(x[1]),
-                        float(y[0]))
+                        data.__limitHiG(float(x[0])),
+                        data.__limitHiG(float(x[1])),
+                        data.__limitHiG(float(y[0])))
                     v1 : vector = vector(
-                        float(y[1]),
-                        float(z[0]),
-                        float(z[1]))
+                        data.__limitHiG(float(y[1])),
+                        data.__limitHiG(float(z[0])),
+                        data.__limitHiG(float(z[1])))
                     self.hiG.append(v0)
                     self.hiG.append(v1)
             if not processedCalibration:
@@ -223,6 +234,7 @@ class data:
                 self.shot.confidence = ShotConfidence.VeryLow
         if self.shot.confidence == ShotConfidence.NoShot:
             self.shot.datum = self.maxAccel
+        self.hiGShot = self.__findHiGShot()
         
     def __findShot(self, offset: int = 0) -> shotDatum:
         __SHOT_THRESHOLD: int = 10000
@@ -288,6 +300,24 @@ class data:
             prevMagnitude = v.magnitude
         shot : shotDatum = shotDatum(vectorDatum(self.accel[shotIndex], shotIndex), shotConfidence)
         return shot
+    
+    def __findHiGShot(self, offset: int = 0) -> shotDatum:
+        KEY = 'magnitude'
+        v : vector = max(self.hiG, key = operator.attrgetter(KEY))
+        i : int = self.hiG.index(v)
+        confidence : ShotConfidence = ShotConfidence.NoShot
+        if v.magnitude > 50:
+            confidence = ShotConfidence.VeryHigh
+        elif v.magnitude > 40:
+            confidence = ShotConfidence.High
+        elif v.magnitude > 30:
+            confidence = ShotConfidence.Medium
+        elif v.magnitude > 20:
+            confidence = ShotConfidence.Low
+        elif v.magnitude > 10:
+            confidence = ShotConfidence.VeryLow
+        datum : shotDatum = shotDatum(vectorDatum(v, i), confidence)
+        return datum
     
     def getAccelList(self, start : int = 0, end : int = -1) -> typing.List[typing.List[float]]:
         l = []
