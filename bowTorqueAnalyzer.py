@@ -14,11 +14,11 @@ import xlsxwriter
 
 # === GLOBAL CONSTANTS =========================================================
 
+DATA_FOLDER = '_DATA'
 
 # === FUNCTIONS ================================================================
 
 def __initRawDataLog() -> typing.List[shotOutput.xlsxData]:
-    DATA_FOLDER = '_DATA'
     GYRO_NAME = 'gyro'
     ACCEL_NAME = 'accel'
     HIG_NAME = 'hiG'
@@ -58,6 +58,7 @@ def __plot(data : shot.data):
 def __process():
     output : shotOutput.xlsx = shotOutput.xlsx(shotOutput.xlsx.Mode.Abbreviated)
     logs : typing.List[shotOutput.xlsxData] = __initRawDataLog()
+    allLog : shotOutput.xlsxAllData = shotOutput.xlsxAllData('all', DATA_FOLDER)
     for fileName in glob.glob('*.csv'):
         print('processing {0}...'.format(fileName))
         datum : shot.data = shot.data(fileName)
@@ -65,9 +66,11 @@ def __process():
         output.writeShotData(datum)
         for l in logs:
             l.addData(datum)
-        __plot(datum)
+        allLog.addData(datum)
+        #__plot(datum)
     for l in logs:
         l.finalize()
+    allLog.finalize()
     output.finalize()
 
 

@@ -474,3 +474,69 @@ class xlsxData:
     def finalize(self):
         self.wb.close()
     
+    
+class xlsxAllData:
+    __EXTENSION : str = 'xlsx'
+    __OPEN_MODE : str = 'w'
+    
+    class Row(enum.Enum):
+        Header = 0
+        SubHeader = 1
+        Shot0 = 2
+        Shot1 = 3
+        Data = 4
+        
+    class SubCol(enum.Enum):
+        Index = 0
+        X = 1
+        Y = 2
+        Z = 3
+        Shot = 4
+    
+    class Fields(enum.Enum):
+        Gyro = 0
+        Accel = 1
+        HiG = 2
+        
+    def __init__(self, name: str, folderPath : str):
+        self.name: str = str(name)
+        self.folderPath : str = folderPath
+        self.wb: xlsxwriter.Workbook = xlsxwriter.Workbook(os.path.join(self.folderPath, '{0}.{1}'.format(self.name, self.__EXTENSION)))
+        self.ws: typing.List[xlsxwriter.Workbook.worksheet_class] = []
+        
+    def __addHeader(self, ws : xlsxwriter.Workbook.worksheet_class):
+        i: int = 0
+        Headers = [ 'GYRO', 'ACCEL', 'HI-G' ]
+        for j, field in enumerate(self.Fields):
+            ws.write(self.Row.Header.value, i, Headers[j])
+            SubHeaders = [ 'Index', 'X', 'Y', 'Z', 'Shot' ]
+            for k, col in enumerate(self.SubCol):
+                ws.write(self.Row.SubHeader.value, i, SubHeaders[k])
+                i += 1
+        
+    def addData(self, s : shot.data):
+        MAX_VALUE = 10000
+        shotIndex = s.shot.datum.index
+        hiGShotIndex = s.hiGShot.datum.index
+        ws = self.wb.add_worksheet(s.fileName)
+        self.__addHeader(ws)
+        Data: typing.List[typing.List[shot.vector]] = [s.gyro, s.accel, s.hiG]
+        ShotIndices: typing.List[int] = [s.shot.datum.index, s.shot.datum.index, s.hiGShot.datum.index]
+        i: int = 0
+        for j, data in enumerate(Data):
+            shotIndex = ShotIndices[j]
+            ws.write(self.Row.Shot0.value, i + self.SubCol.Index.value, shotIndex)
+            ws.write(self.Row.Shot0.value, i + self.SubCol.Shot.value, -MAX_VALUE)
+            ws.write(self.Row.Shot1.value, i + self.SubCol.Index.value, shotIndex)
+            ws.write(self.Row.Shot1.value, i + self.SubCol.Shot.value, MAX_VALUE)
+            for k, d in enumerate(data):
+                ws.write(self.Row.Data.value + k, self.SubCol.Index.value, k)
+                ws.write(self.Row.Data.value + k, self.SubCol.X.value, d.x)
+                ws.write(self.Row.Data.value + k, self.SubCol.Y.value, d.y)
+                ws.write(self.Row.Data.value + k, self.SubCol.Z.value, d.z)
+                i += len(self.SubCol)
+        i = len(data)
+        self.ws.append(ws)
+        
+    def finalize(self):
+        self.wb.close()
