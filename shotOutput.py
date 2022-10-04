@@ -563,15 +563,18 @@ class xlsxAllData:
                 minIndex = 0
             if maxIndex > len(data):
                 maxIndex = len(data)
-            maxVal: float = 1
-            minVal: float = -1
+            maxVal: float = 0.1
+            minVal: float = -0.1
             for k, d in enumerate(data[minIndex:maxIndex]):
                 ws.write(self.Row.Data.value + row, col + self.Col.Index.value, k + minIndex)
-                ws.write(self.Row.Data.value + row, col + self.Col.X.value, d.x)
-                ws.write(self.Row.Data.value + row, col + self.Col.Y.value, d.y)
-                ws.write(self.Row.Data.value + row, col + self.Col.Z.value, d.z)
-                maxVal = max(d.x, d.y, d.z, maxVal)
-                minVal = min(d.x, d.y, d.z, minVal)
+                x = d.xUnit
+                y = d.yUnit
+                z = d.zUnit
+                ws.write(self.Row.Data.value + row, col + self.Col.X.value, x)
+                ws.write(self.Row.Data.value + row, col + self.Col.Y.value, y)
+                ws.write(self.Row.Data.value + row, col + self.Col.Z.value, z)
+                maxVal = max(x, y, z, maxVal)
+                minVal = min(x, y, z, minVal)
                 row += 1
             ws.write(self.Row.Data.value + row, col + self.Col.Index.value, shotIndex)
             ws.write(self.Row.Data.value + row, col + self.Col.Shot.value, minVal * FACTOR)

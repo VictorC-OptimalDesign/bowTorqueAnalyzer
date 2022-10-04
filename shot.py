@@ -51,6 +51,12 @@ def convertLsbToG(a : int) -> float:
 def convertLsbToG(a : float) -> float:
     return float(a / LSB_TO_G_DIVISOR)
 
+def convertLsbToDeg(a : float) -> float:
+    return float(a * 1000 / 65536)
+
+def convertLsbToHiG(a : float) -> float:
+    return float(a * 200 /  256)
+
 
 # === CLASSES ==================================================================
 
@@ -62,20 +68,38 @@ class vector:
         HiG = 3
         Calibration = 4
         
-    def __init__(self, x : float, y : float, z: float):
-        self.x: float = x
-        self.y: float = y
-        self.z: float = z
-        self.type: self.Type = self.Type.Unedefined
+    def __init__(self, d: typing.List[float], type: Type):
+        self.x: float = d[0]
+        self.y: float = d[1]
+        self.z: float = d[2]
+        self.type: self.Type = type
         self.magnitude: float = findThreeAxisMagnitude(self.x, self.y, self.z)
         self.xUnit: float = self.x
         self.yUnit: float = self.y
         self.zUnit: float = self.z
         self.magnitudeUnit: float = self.magnitude
-        self.absX: float = abs(x)
-        self.absY: float = abs(y)
-        self.absZ: float = abs(z)
+        self.absX: float = abs(self.x)
+        self.absY: float = abs(self.y)
+        self.absZ: float = abs(self.z)
         self.list: typing.List[float] = [self.x, self.y, self.z]
+        self.__createUnitValues()
+        
+    def __createUnitValues(self):
+        if self.type is self.Type.Gyro:
+            self.xUnit = convertLsbToDeg(self.xUnit)
+            self.yUnit = convertLsbToDeg(self.yUnit)
+            self.zUnit = convertLsbToDeg(self.zUnit)
+            self.magnitudeUnit = convertLsbToDeg(self.magnitudeUnit)
+        elif self.type is self.Type.Accel or self.type is self.Type.Calibration:
+            self.xUnit = convertLsbToG(self.xUnit)
+            self.yUnit = convertLsbToG(self.yUnit)
+            self.zUnit = convertLsbToG(self.zUnit)
+            self.magnitudeUnit = convertLsbToG(self.magnitudeUnit)
+        elif self.type is self.Type.HiG:
+            self.xUnit = convertLsbToHiG(self.xUnit)
+            self.yUnit = convertLsbToHiG(self.yUnit)
+            self.zUnit = convertLsbToHiG(self.zUnit)
+            self.magnitudeUnit = convertLsbToHiG(self.magnitudeUnit)
         
     def getVectorSum(self) -> int:
         return abs(self.x) + abs(self.y) + abs(self.z)
@@ -126,7 +150,7 @@ class data:
         self.gyro: typing.List[vector] = []
         self.accel: typing.List[vector] = []
         self.hiG: typing.List[vector] = []
-        self.calibration: vector = vector(0, 0, 0)
+        self.calibration: vector = vector([0, 0, 0], vector.Type.Calibration)
         self.handedness: Handedness = Handedness.Right
         self.maxGyro: vectorDatum
         self.maxAccel: vectorDatum
@@ -157,29 +181,30 @@ class data:
                 readLines = file.readlines()
             file.close()
             self.numIMU = 0
-            processedCalibration : bool = False
+            processedCalibration: bool = False
             for line in readLines:
                 line = line.strip()
                 entries = line.split(',')
                 type: int = int(entries[self.LineIndex.Type.value])
-                v: vector = vector(float(entries[self.LineIndex.X.value]),
-                                    float(entries[self.LineIndex.Y.value]),
-                                    float(entries[self.LineIndex.Z.value]))
+                d: typing.List[float] = [float(entries[self.LineIndex.X.value]),
+                                         float(entries[self.LineIndex.Y.value]),
+                                         float(entries[self.LineIndex.Z.value])]
+                #v: vector = vector(float(entries[self.LineIndex.X.value]),
+                #                   float(entries[self.LineIndex.Y.value]),
+                #                   float(entries[self.LineIndex.Z.value]))
                 
                 if (type == TYPE_IMU_GRYO):
-                    v.type = vector.Type.Gyro
+                    v: vector = vector(d, vector.Type.Gyro)
                     self.gyro.append(v)
                 elif (type == TYPE_IMU_ACCEL):
-                    v.type = vector.Type.Accel
+                    v: vector = vector(d, vector.Type.Accel)
                     self.accel.append(v)
                 elif (type == TYPE_HI_G_ACCEL):
-                    v.type = vector.Type.HiG
-                    hiGV : vector = vector(data.__limitHiG(float(entries[self.LineIndex.X.value])),
-                                           data.__limitHiG(float(entries[self.LineIndex.Y.value])),
-                                           data.__limitHiG(float(entries[self.LineIndex.Z.value])))
-                    self.hiG.append(hiGV)
+                    d = list(map(data.__limitHiG, d))
+                    v: vector = vector(d, vector.Type.HiG)
+                    self.hiG.append(v)
                 elif (type == TYPE_CALIBRATION):
-                    v.type = vector.Type.Calibration
+                    v: vector = vector(d, vector.Type.Calibration)
                     self.calibration = v
                     processedCalibration = True
                 elif (type == TYPE_SETTINGS):
@@ -196,23 +221,21 @@ class data:
                     y = struct.unpack(FORMAT, bytes)
                     bytes = int(entries[self.LineIndex.Z.value]).to_bytes(2, ENDIANNESS, signed = True)
                     z = struct.unpack(FORMAT, bytes)
-                    v0 : vector = vector(
-                        data.__limitHiG(float(x[0])),
-                        data.__limitHiG(float(x[1])),
-                        data.__limitHiG(float(y[0])))
-                    v0.type = vector.Type.HiG
-                    v1 : vector = vector(
-                        data.__limitHiG(float(y[1])),
-                        data.__limitHiG(float(z[0])),
-                        data.__limitHiG(float(z[1])))
-                    v1.type = vector.Type.HiG
-                    self.hiG.append(v0)
-                    self.hiG.append(v1)
+                    d: typing.List[float] = [data.__limitHiG(float(x[0])),
+                                             data.__limitHiG(float(x[1])),
+                                             data.__limitHiG(float(y[0]))]
+                    v: vector = vector(d, vector.Type.HiG)
+                    self.hiG.append(v)
+                    d: typing.List[float] = [data.__limitHiG(float(y[1])),
+                                             data.__limitHiG(float(z[0])),
+                                             data.__limitHiG(float(z[1]))]
+                    v: vector = vector(d, vector.Type.HiG)
+                    self.hiG.append(v)
             if not processedCalibration:
                 if self.handedness is Handedness.Left:
-                    self.calibration = vector(0.280273, -0.979248, 0.011719)
+                    self.calibration = vector([0.280273, -0.979248, 0.011719], vector.Type.Calibration)
                 else:
-                    self.calibration = vector(-0.280273, -0.979248, -0.011719)
+                    self.calibration = vector([-0.280273, -0.979248, -0.011719], vector.Type.Calibration)
         
     def __analyze(self):
         MAGNITUDE = 'magnitude'
