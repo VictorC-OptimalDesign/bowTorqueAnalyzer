@@ -516,26 +516,32 @@ class xlsxAllData:
         
     def addData(self, s : shot.data):
         MAX_VALUE = 10000
+        OFFSET = 30
         shotIndex = s.shot.datum.index
         hiGShotIndex = s.hiGShot.datum.index
         ws = self.wb.add_worksheet(s.fileName)
         self.__addHeader(ws)
         Data: typing.List[typing.List[shot.vector]] = [s.gyro, s.accel, s.hiG]
         ShotIndices: typing.List[int] = [s.shot.datum.index, s.shot.datum.index, s.hiGShot.datum.index]
-        i: int = 0
+        col: int = 0
         for j, data in enumerate(Data):
             shotIndex = ShotIndices[j]
-            ws.write(self.Row.Shot0.value, i + self.SubCol.Index.value, shotIndex)
-            ws.write(self.Row.Shot0.value, i + self.SubCol.Shot.value, -MAX_VALUE)
-            ws.write(self.Row.Shot1.value, i + self.SubCol.Index.value, shotIndex)
-            ws.write(self.Row.Shot1.value, i + self.SubCol.Shot.value, MAX_VALUE)
-            for k, d in enumerate(data):
-                ws.write(self.Row.Data.value + k, self.SubCol.Index.value, k)
-                ws.write(self.Row.Data.value + k, self.SubCol.X.value, d.x)
-                ws.write(self.Row.Data.value + k, self.SubCol.Y.value, d.y)
-                ws.write(self.Row.Data.value + k, self.SubCol.Z.value, d.z)
-                i += len(self.SubCol)
-        i = len(data)
+            min: int = shotIndex - OFFSET
+            max: int = shotIndex + OFFSET + 1
+            if min < 0:
+                min = 0
+            if max > len(data):
+                max = len(data)
+            ws.write(self.Row.Shot0.value, col + self.SubCol.Index.value, shotIndex)
+            ws.write(self.Row.Shot0.value, col + self.SubCol.Shot.value, -MAX_VALUE)
+            ws.write(self.Row.Shot1.value, col + self.SubCol.Index.value, shotIndex)
+            ws.write(self.Row.Shot1.value, col + self.SubCol.Shot.value, MAX_VALUE)
+            for k, d in enumerate(data[min:max]):
+                ws.write(self.Row.Data.value + k, col + self.SubCol.Index.value, k + min)
+                ws.write(self.Row.Data.value + k, col + self.SubCol.X.value, d.x)
+                ws.write(self.Row.Data.value + k, col + self.SubCol.Y.value, d.y)
+                ws.write(self.Row.Data.value + k, col + self.SubCol.Z.value, d.z)
+            col += len(self.SubCol)
         self.ws.append(ws)
         
     def finalize(self):
