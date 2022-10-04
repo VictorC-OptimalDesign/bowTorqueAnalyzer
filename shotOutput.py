@@ -513,7 +513,7 @@ class xlsxAllData:
                     ws.write(self.Row.Header.value, i, self.__HEADERS[k])
                 i += 1
                 
-    def __addChart(self, ws: xlsxwriter.Workbook.worksheet_class, row: int, col: int, fileName: str, type: str, plotX: bool = True, plotY: bool = True, plotZ: bool = True):
+    def __addChart(self, ws: xlsxwriter.Workbook.worksheet_class, row: int, col: int, fileName: str, type: str, positionRow: int, positionCol: int, plotX: bool = True, plotY: bool = True, plotZ: bool = True):
         chart = self.wb.add_chart({'type': 'scatter', 'subtype': 'straight'})
         if plotX:
             chart.add_series({
@@ -544,11 +544,11 @@ class xlsxAllData:
         })
         chart.set_title({'name': type})
         chart.set_x_axis({'name': self.__HEADERS[self.Col.Index.value]})
-        ws.insert_chart(self.Row.Data.value, self.Col.Index.value + col, chart, {'x_scale': 3, 'y_scale': 3})
+        ws.insert_chart(positionRow, positionCol, chart, {'x_scale': 3, 'y_scale': 3})
         
     def addData(self, s : shot.data):
-        FACTOR = 1.2
-        OFFSET = 30
+        FACTOR = 1.4
+        OFFSET = 20
         ws = self.wb.add_worksheet(s.fileName)
         self.__addHeader(ws)
         Data: typing.List[typing.List[shot.vector]] = [s.gyro, s.accel, s.hiG]
@@ -578,9 +578,9 @@ class xlsxAllData:
             row += 1
             ws.write(self.Row.Data.value + row, col + self.Col.Index.value, shotIndex)
             ws.write(self.Row.Data.value + row, col + self.Col.Shot.value, maxVal * FACTOR)
-            self.__addChart(ws, row, col, s.fileName, self.__TYPES[j])
+            self.__addChart(ws, row, col, s.fileName, self.__TYPES[j], self.Row.Data.value, self.Col.Index.value + col)
             col += len(self.Col)
-        self.__addChart(ws, len(s.gyro), 0, s.fileName, 'Gyro-Y', False, True, False)
+        self.__addChart(ws, len(s.gyro), 0, s.fileName, 'Gyro-Y', self.Row.Data.value + 43, self.Col.Index.value + col - len(self.Col), False, True, False)
             
         self.ws.append(ws)
         

@@ -55,15 +55,23 @@ def convertLsbToG(a : float) -> float:
 # === CLASSES ==================================================================
 
 class vector:
+    class Type(enum.Enum):
+        Unedefined = 0
+        Gyro = 1
+        Accel = 2
+        HiG = 3
+        Calibration = 4
+        
     def __init__(self, x : float, y : float, z: float):
         self.x: float = x
         self.y: float = y
         self.z: float = z
+        self.type: self.Type = self.Type.Unedefined
         self.magnitude: float = findThreeAxisMagnitude(self.x, self.y, self.z)
-        self.xG: float = convertLsbToG(self.x)
-        self.yG: float = convertLsbToG(self.y)
-        self.zG: float = convertLsbToG(self.z)
-        self.magnitudeG: float = convertLsbToG(self.magnitude)
+        self.xUnit: float = self.x
+        self.yUnit: float = self.y
+        self.zUnit: float = self.z
+        self.magnitudeUnit: float = self.magnitude
         self.absX: float = abs(x)
         self.absY: float = abs(y)
         self.absZ: float = abs(z)
@@ -153,21 +161,25 @@ class data:
             for line in readLines:
                 line = line.strip()
                 entries = line.split(',')
-                type = int(entries[self.LineIndex.Type.value])
-                v : vector = vector(float(entries[self.LineIndex.X.value]),
+                type: int = int(entries[self.LineIndex.Type.value])
+                v: vector = vector(float(entries[self.LineIndex.X.value]),
                                     float(entries[self.LineIndex.Y.value]),
                                     float(entries[self.LineIndex.Z.value]))
                 
                 if (type == TYPE_IMU_GRYO):
+                    v.type = vector.Type.Gyro
                     self.gyro.append(v)
                 elif (type == TYPE_IMU_ACCEL):
+                    v.type = vector.Type.Accel
                     self.accel.append(v)
                 elif (type == TYPE_HI_G_ACCEL):
+                    v.type = vector.Type.HiG
                     hiGV : vector = vector(data.__limitHiG(float(entries[self.LineIndex.X.value])),
                                            data.__limitHiG(float(entries[self.LineIndex.Y.value])),
                                            data.__limitHiG(float(entries[self.LineIndex.Z.value])))
                     self.hiG.append(hiGV)
                 elif (type == TYPE_CALIBRATION):
+                    v.type = vector.Type.Calibration
                     self.calibration = v
                     processedCalibration = True
                 elif (type == TYPE_SETTINGS):
@@ -188,10 +200,12 @@ class data:
                         data.__limitHiG(float(x[0])),
                         data.__limitHiG(float(x[1])),
                         data.__limitHiG(float(y[0])))
+                    v0.type = vector.Type.HiG
                     v1 : vector = vector(
                         data.__limitHiG(float(y[1])),
                         data.__limitHiG(float(z[0])),
                         data.__limitHiG(float(z[1])))
+                    v1.type = vector.Type.HiG
                     self.hiG.append(v0)
                     self.hiG.append(v1)
             if not processedCalibration:
