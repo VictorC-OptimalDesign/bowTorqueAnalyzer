@@ -514,7 +514,8 @@ class xlsxAllData:
                 i += 1
                 
     def __addChart(self, ws: xlsxwriter.Workbook.worksheet_class, row: int, col: int, fileName: str, type: str, positionRow: int, positionCol: int, plotX: bool = True, plotY: bool = True, plotZ: bool = True):
-        chart = self.wb.add_chart({'type': 'scatter', 'subtype': 'straight'})
+        #chart = self.wb.add_chart({'type': 'scatter', 'subtype': 'straight'})
+        chart = self.wb.add_chart({'type': 'line'})
         if plotX:
             chart.add_series({
                 'name':         [fileName, self.Row.Header.value, self.Col.X.value + col],
