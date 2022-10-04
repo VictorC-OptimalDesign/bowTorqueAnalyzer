@@ -513,26 +513,29 @@ class xlsxAllData:
                     ws.write(self.Row.Header.value, i, self.__HEADERS[k])
                 i += 1
                 
-    def __addChart(self, ws: xlsxwriter.Workbook.worksheet_class, row: int, col: int, fileName: str, type: str):
+    def __addChart(self, ws: xlsxwriter.Workbook.worksheet_class, row: int, col: int, fileName: str, type: str, plotX: bool = True, plotY: bool = True, plotZ: bool = True):
         chart = self.wb.add_chart({'type': 'scatter', 'subtype': 'straight'})
-        chart.add_series({
-            'name':         [fileName, self.Row.Header.value, self.Col.X.value + col],
-            'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
-            'values':       [fileName, self.Row.Data.value, self.Col.X.value + col, self.Row.Data.value + row, self.Col.X.value + col],
-            'line':         {'color': '#B01010'},
-        })
-        chart.add_series({
-            'name':         [fileName, self.Row.Header.value, self.Col.Y.value + col],
-            'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
-            'values':       [fileName, self.Row.Data.value, self.Col.Y.value + col, self.Row.Data.value + row, self.Col.Y.value + col],
-            'line':         {'color': '#10B010'},
-        })
-        chart.add_series({
-            'name':         [fileName, self.Row.Header.value, self.Col.Z.value + col],
-            'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
-            'values':       [fileName, self.Row.Data.value, self.Col.Z.value + col, self.Row.Data.value + row, self.Col.Z.value + col],
-            'line':         {'color': '#1010B0'},
-        })
+        if plotX:
+            chart.add_series({
+                'name':         [fileName, self.Row.Header.value, self.Col.X.value + col],
+                'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
+                'values':       [fileName, self.Row.Data.value, self.Col.X.value + col, self.Row.Data.value + row, self.Col.X.value + col],
+                'line':         {'color': '#B01010'},
+            })
+        if plotY:
+            chart.add_series({
+                'name':         [fileName, self.Row.Header.value, self.Col.Y.value + col],
+                'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
+                'values':       [fileName, self.Row.Data.value, self.Col.Y.value + col, self.Row.Data.value + row, self.Col.Y.value + col],
+                'line':         {'color': '#10B010'},
+            })
+        if plotZ:
+            chart.add_series({
+                'name':         [fileName, self.Row.Header.value, self.Col.Z.value + col],
+                'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
+                'values':       [fileName, self.Row.Data.value, self.Col.Z.value + col, self.Row.Data.value + row, self.Col.Z.value + col],
+                'line':         {'color': '#1010B0'},
+            })
         chart.add_series({
             'name':         [fileName, self.Row.Header.value, self.Col.Shot.value + col],
             'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
@@ -577,6 +580,7 @@ class xlsxAllData:
             ws.write(self.Row.Data.value + row, col + self.Col.Shot.value, maxVal * FACTOR)
             self.__addChart(ws, row, col, s.fileName, self.__TYPES[j])
             col += len(self.Col)
+        self.__addChart(ws, len(s.gyro), 0, s.fileName, 'Gyro-Y', False, True, False)
             
         self.ws.append(ws)
         
