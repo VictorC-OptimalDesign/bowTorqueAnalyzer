@@ -476,24 +476,24 @@ class xlsxData:
     
     
 class xlsxAllData:
-    __EXTENSION : str = 'xlsx'
-    __OPEN_MODE : str = 'w'
+    __EXTENSION: str = 'xlsx'
+    __OPEN_MODE:  str = 'w'
+    __TYPES: str = [ 'GYRO', 'ACCEL', 'HI-G' ]
+    __HEADERS: str = [ '', 'Index', 'X', 'Y', 'Z', 'Shot' ]
     
     class Row(enum.Enum):
         Header = 0
-        SubHeader = 1
-        Shot0 = 2
-        Shot1 = 3
-        Data = 4
+        Data = 1
         
-    class SubCol(enum.Enum):
-        Index = 0
-        X = 1
-        Y = 2
-        Z = 3
-        Shot = 4
-    
-    class Fields(enum.Enum):
+    class Col(enum.Enum):
+        Type = 0
+        Index = 1
+        X = 2
+        Y = 3
+        Z = 4
+        Shot = 5
+        
+    class Field(enum.Enum):
         Gyro = 0
         Accel = 1
         HiG = 2
@@ -506,42 +506,78 @@ class xlsxAllData:
         
     def __addHeader(self, ws : xlsxwriter.Workbook.worksheet_class):
         i: int = 0
-        Headers = [ 'GYRO', 'ACCEL', 'HI-G' ]
-        for j, field in enumerate(self.Fields):
-            ws.write(self.Row.Header.value, i, Headers[j])
-            SubHeaders = [ 'Index', 'X', 'Y', 'Z', 'Shot' ]
-            for k, col in enumerate(self.SubCol):
-                ws.write(self.Row.SubHeader.value, i, SubHeaders[k])
+        for j, field in enumerate(self.__TYPES):
+            ws.write(self.Row.Header.value, i, self.__TYPES[j])
+            for k, col in enumerate(self.__HEADERS):
+                if col:
+                    ws.write(self.Row.Header.value, i, self.__HEADERS[k])
                 i += 1
+                
+    def __addChart(self, ws: xlsxwriter.Workbook.worksheet_class, row: int, col: int, fileName: str, type: str):
+        chart = self.wb.add_chart({'type': 'scatter', 'subtype': 'straight'})
+        chart.add_series({
+            'name':         [fileName, self.Row.Header.value, self.Col.X.value + col],
+            'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
+            'values':       [fileName, self.Row.Data.value, self.Col.X.value + col, self.Row.Data.value + row, self.Col.X.value + col],
+            'line':         {'color': '#B01010'},
+        })
+        chart.add_series({
+            'name':         [fileName, self.Row.Header.value, self.Col.Y.value + col],
+            'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
+            'values':       [fileName, self.Row.Data.value, self.Col.Y.value + col, self.Row.Data.value + row, self.Col.Y.value + col],
+            'line':         {'color': '#10B010'},
+        })
+        chart.add_series({
+            'name':         [fileName, self.Row.Header.value, self.Col.Z.value + col],
+            'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
+            'values':       [fileName, self.Row.Data.value, self.Col.Z.value + col, self.Row.Data.value + row, self.Col.Z.value + col],
+            'line':         {'color': '#1010B0'},
+        })
+        chart.add_series({
+            'name':         [fileName, self.Row.Header.value, self.Col.Shot.value + col],
+            'categories':   [fileName, self.Row.Data.value, self.Col.Index.value + col, self.Row.Data.value + row, self.Col.Index.value + col],
+            'values':       [fileName, self.Row.Data.value, self.Col.Shot.value + col, self.Row.Data.value + row, self.Col.Shot.value + col],
+            'line':         {'color': '#7F7F7F', 'dash_type': 'dash'},
+        })
+        chart.set_title({'name': type})
+        chart.set_x_axis({'name': self.__HEADERS[self.Col.Index.value]})
+        ws.insert_chart(self.Row.Data.value, self.Col.Index.value + col, chart, {'x_scale': 3, 'y_scale': 3})
         
     def addData(self, s : shot.data):
-        MAX_VALUE = 10000
+        FACTOR = 1.2
         OFFSET = 30
-        shotIndex = s.shot.datum.index
-        hiGShotIndex = s.hiGShot.datum.index
         ws = self.wb.add_worksheet(s.fileName)
         self.__addHeader(ws)
         Data: typing.List[typing.List[shot.vector]] = [s.gyro, s.accel, s.hiG]
         ShotIndices: typing.List[int] = [s.shot.datum.index, s.shot.datum.index, s.hiGShot.datum.index]
         col: int = 0
         for j, data in enumerate(Data):
+            row: int = 0
             shotIndex = ShotIndices[j]
-            min: int = shotIndex - OFFSET
-            max: int = shotIndex + OFFSET + 1
-            if min < 0:
-                min = 0
-            if max > len(data):
-                max = len(data)
-            ws.write(self.Row.Shot0.value, col + self.SubCol.Index.value, shotIndex)
-            ws.write(self.Row.Shot0.value, col + self.SubCol.Shot.value, -MAX_VALUE)
-            ws.write(self.Row.Shot1.value, col + self.SubCol.Index.value, shotIndex)
-            ws.write(self.Row.Shot1.value, col + self.SubCol.Shot.value, MAX_VALUE)
-            for k, d in enumerate(data[min:max]):
-                ws.write(self.Row.Data.value + k, col + self.SubCol.Index.value, k + min)
-                ws.write(self.Row.Data.value + k, col + self.SubCol.X.value, d.x)
-                ws.write(self.Row.Data.value + k, col + self.SubCol.Y.value, d.y)
-                ws.write(self.Row.Data.value + k, col + self.SubCol.Z.value, d.z)
-            col += len(self.SubCol)
+            minIndex: int = shotIndex - OFFSET
+            maxIndex: int = shotIndex + OFFSET + 1
+            if minIndex < 0:
+                minIndex = 0
+            if maxIndex > len(data):
+                maxIndex = len(data)
+            maxVal: float = 1
+            minVal: float = -1
+            for k, d in enumerate(data[minIndex:maxIndex]):
+                ws.write(self.Row.Data.value + row, col + self.Col.Index.value, k + minIndex)
+                ws.write(self.Row.Data.value + row, col + self.Col.X.value, d.x)
+                ws.write(self.Row.Data.value + row, col + self.Col.Y.value, d.y)
+                ws.write(self.Row.Data.value + row, col + self.Col.Z.value, d.z)
+                maxVal = max(d.x, d.y, d.z, maxVal)
+                minVal = min(d.x, d.y, d.z, minVal)
+                row += 1
+            ws.write(self.Row.Data.value + row, col + self.Col.Index.value, shotIndex)
+            ws.write(self.Row.Data.value + row, col + self.Col.Shot.value, minVal * FACTOR)
+            row += 1
+            ws.write(self.Row.Data.value + row, col + self.Col.Index.value, shotIndex)
+            ws.write(self.Row.Data.value + row, col + self.Col.Shot.value, maxVal * FACTOR)
+            self.__addChart(ws, row, col, s.fileName, self.__TYPES[j])
+            col += len(self.Col)
+            
         self.ws.append(ws)
         
     def finalize(self):
